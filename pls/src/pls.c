@@ -19,7 +19,6 @@ static struct options {
 
 char* format_time(struct tm*);
 char* file_perm(mode_t);
-int   count_dirs(char*);
 
 int main(int argc, char** argv)
 {
@@ -74,7 +73,7 @@ int main(int argc, char** argv)
                         file_data_len += \
                                 sprintf(file_data + file_data_len, "%.11s ", file_perm(statbuf.st_mode));
                         file_data_len += \
-                                sprintf(file_data + file_data_len, "%3d ", count_dirs(dr_info->d_name));
+                                sprintf(file_data + file_data_len, "%3ld ", statbuf.st_nlink);
 
                         if (NULL != (pwd = getpwuid(statbuf.st_uid))) {
                                 file_data_len += \
@@ -149,24 +148,6 @@ char* file_perm(mode_t mode)
         }
 
         return perm;
-}
-
-int count_dirs(char* dir_name)
-{
-        DIR* dir;
-        struct dirent* dp;
-
-        int count = 1;
-
-        if (NULL == (dir = opendir(dir_name))) {
-                return count;
-        }
-
-        while (NULL != (dp = readdir(dir))) {
-                count++;
-        }
-
-        return count-2; // Excluding . & ..
 }
 
 char* format_time(struct tm *timep)
