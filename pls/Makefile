@@ -34,4 +34,4 @@ release: $(RELEASE)/pls
 clean:
 	rm -rf $(OBJECTS) $(BUILD_DIR)
 
-.PHONY: pls clean
+.PHONY: release pls clean
