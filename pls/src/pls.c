@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
@@ -18,6 +19,7 @@ static struct options {
 }options;
 
 char* format_time(struct tm*);
+char* format_size(intmax_t, char);
 char* file_perm(mode_t);
 
 int main(int argc, char** argv)
@@ -30,6 +32,7 @@ int main(int argc, char** argv)
 
         char  file_data[FILE_DATA_LEN];
         int   file_data_len = 0;
+        int   file_in_bytes = 0;
         int   opt;
 
         memset(&options, 0, sizeof(struct options));
@@ -61,6 +64,7 @@ int main(int argc, char** argv)
         while (NULL != (dr_info = readdir(curr_dir))) {
                 memset(file_data, 0, FILE_DATA_LEN);
                 file_data_len = 0;
+                file_in_bytes = 0;
 
                 if (-1 == stat(dr_info->d_name, &statbuf)) {
                         continue;
@@ -90,11 +94,41 @@ int main(int argc, char** argv)
                                         sprintf(file_data + file_data_len, "%-8d ", statbuf.st_gid);
                         }
 
+                        if (1 == options.human_readable) {
+                                if ((intmax_t)statbuf.st_size > 1024*1024*1024) {
+                                        file_data_len += sprintf(                         \
+                                                file_data + file_data_len,                 \
+                                                "%s ",                                      \
+                                                format_size((intmax_t)statbuf.st_size, 'G')  \
+                                        );
+                                } else if ((intmax_t)statbuf.st_size > 1024*1024) {
+                                        file_data_len += sprintf(                           \
+                                                file_data + file_data_len,                   \
+                                                "%s ",                                        \
+                                                format_size((intmax_t)statbuf.st_size, 'M')    \
+                                        );
+                                } else if ((intmax_t)statbuf.st_size > 1024) {
+                                        file_data_len += sprintf(                            \
+                                                file_data + file_data_len,                    \
+                                                "%s ",                                         \
+                                                format_size((intmax_t)statbuf.st_size, 'K')     \
+                                        );
+                                } else {
+                                        file_in_bytes = 1;
+                                }
+                        }
+                        if (0 == options.human_readable || 1 == file_in_bytes) {
+                                 file_data_len += sprintf(                               \
+                                         file_data + file_data_len,                       \
+                                         "%9jd ",                                          \
+                                         (intmax_t)statbuf.st_size                          \
+                                 );
+                        }
+
                         file_data_len += sprintf(                      \
                                 file_data + file_data_len,              \
-                                "%9jd %.12s ",                           \
-                                (intmax_t)statbuf.st_size,                \
-                                format_time(localtime(&statbuf.st_mtime))  \
+                                "%.12s ",                                \
+                                format_time(localtime(&statbuf.st_mtime)) \
                         );
                 }
                 file_data_len += \
@@ -165,4 +199,32 @@ char* format_time(struct tm *timep)
         );
         
         return date_string;
+}
+
+char* format_size(intmax_t f_size, char symbol)
+{
+        int dividend = 1;
+        static char f_size_c[15];
+
+        switch(symbol) {
+                case 'G':
+                        dividend = 1024*1024*1024; 
+                        break;
+                case 'M':
+                        dividend = 1024*1024;
+                        break;
+                case 'K':
+                        dividend = 1024;
+                        break;
+                default:
+                        fprintf(stderr, "Invalid Size formatting: %c", symbol);
+                        exit(1);
+        }
+        sprintf(                         \
+                f_size_c,                 \
+                "%8.1f%c",                 \
+                (double)f_size/dividend,    \
+                symbol
+        );
+        return f_size_c;
 }
